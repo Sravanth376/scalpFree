@@ -16,9 +16,9 @@ from PIL import Image
 import gdown
 
 # ✅ FIXED IMPORTS
-from backend.database import SessionLocal, engine, Base
-from backend.models import User, Scan
-from backend.model_loader import load_model_safe
+from database import SessionLocal, engine, Base
+from models import User, Scan
+from model_loader import load_model_safe
 
 # =====================================================
 # ENV
