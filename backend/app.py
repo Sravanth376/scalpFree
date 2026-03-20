@@ -9,7 +9,7 @@ from jose import jwt
 from dotenv import load_dotenv
 from uuid import uuid4
 from datetime import datetime, timedelta
-
+import gdown
 import os
 import io
 import numpy as np
@@ -180,28 +180,28 @@ def get_current_user(
 # =====================================================
 # ML MODEL
 # =====================================================
+import gdown
+
 MODEL_PATH = os.path.join(BASE_DIR, "model", "hair-diseases.hdf5")
 
-if not os.path.exists(MODEL_PATH):
-    raise RuntimeError(f"❌ Model not found at {MODEL_PATH}")
+# Create model folder if not exists
+os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
+# Download model if not exists
+if not os.path.exists(MODEL_PATH):
+    print("⬇️ Downloading model from Google Drive...")
+
+    file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
+    url = f"https://drive.google.com/uc?id={file_id}"
+
+    gdown.download(url, MODEL_PATH, quiet=False)
+else:
+    print("✅ Model already exists")
+
+# Load model
 model = load_model_safe()
 print("✅ Model loaded")
 print("MODEL INPUT SHAPE:", model.input_shape)
-
-CLASS_NAMES = [
-    "Alopecia Areata",
-    "Contact Dermatitis",
-    "Folliculitis",
-    "Head Lice",
-    "Lichen Planus",
-    "Male Pattern Baldness",
-    "Psoriasis",
-    "Seborrheic Dermatitis",
-    "Telogen Effluvium",
-    "Tinea Capitis",
-]
-
 # =====================================================
 # IMAGE PREPROCESSING
 # =====================================================
