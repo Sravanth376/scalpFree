@@ -16,10 +16,13 @@ from PIL import Image
 import gdown
 
 # ✅ FIXED IMPORTS
-from database import SessionLocal, engine, Base
-from models import User, Scan
-from model_loader import load_model_safe
+from backend.database import SessionLocal, engine, Base
+from backend.models import User, Scan
+from backend.model_loader import load_model_safe
+import sys
+import os
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 # =====================================================
 # ENV
 # =====================================================
