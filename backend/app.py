@@ -1,4 +1,5 @@
 print("🔥 STEP 1: file loaded")
+
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -16,13 +17,13 @@ import numpy as np
 from PIL import Image
 import gdown
 
-# ✅ FIXED IMPORTS
+# ✅ CORRECT IMPORTS
 from backend.database import SessionLocal, engine, Base
 from backend.models import User, Scan
 from backend.model_loader import load_model_safe
-import sys
-import os
+
 print("🔥 STEP 2: imports done")
+
 # =====================================================
 # ENV
 # =====================================================
@@ -46,9 +47,10 @@ pwd_context = CryptContext(
 security = HTTPBearer()
 
 # =====================================================
-# APP
+# APP (ONLY ONCE ✅)
 # =====================================================
 app = FastAPI(title="ScalpFree API")
+print("🔥 STEP 3: app created")
 
 app.add_middleware(
     CORSMiddleware,
@@ -96,8 +98,7 @@ def custom_openapi():
     return app.openapi_schema
 
 app.openapi = custom_openapi
-app = FastAPI()
-print("🔥 STEP 3: app created")
+
 # =====================================================
 # DB DEPENDENCY
 # =====================================================
@@ -185,7 +186,7 @@ def get_current_user(
 MODEL_PATH = os.path.join(BASE_DIR, "model", "hair-diseases.hdf5")
 os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
-model = None  # 🔥 lazy load
+model = None
 
 CLASS_NAMES = [
     "Alopecia Areata",
@@ -224,7 +225,7 @@ async def predict(
 ):
     global model
 
-    # ✅ IMPORT TENSORFLOW HERE (NOT GLOBAL)
+    # ✅ Load TensorFlow ONLY when needed
     import tensorflow as tf
     tf.get_logger().setLevel('ERROR')
 
@@ -242,14 +243,14 @@ async def predict(
     with open(image_path, "wb") as f:
         f.write(image_bytes)
 
-    # 🔥 download model if not exists
+    # 🔥 Download model if needed
     if not os.path.exists(MODEL_PATH):
         print("⬇️ Downloading model...")
         file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
         url = f"https://drive.google.com/uc?id={file_id}"
         gdown.download(url, MODEL_PATH, quiet=False)
 
-    # 🔥 load model lazily
+    # 🔥 Load model lazily
     if model is None:
         print("🚀 Loading model...")
         model = load_model_safe()
