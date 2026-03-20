@@ -21,8 +21,7 @@ from backend.models import User, Scan
 from backend.model_loader import load_model_safe
 import sys
 import os
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+print("🚀 App starting...")
 # =====================================================
 # ENV
 # =====================================================
