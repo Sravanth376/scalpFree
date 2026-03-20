@@ -9,19 +9,18 @@ from jose import jwt
 from dotenv import load_dotenv
 from uuid import uuid4
 from datetime import datetime, timedelta
-import gdown
 import os
 import io
 import numpy as np
 import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 from PIL import Image
+import gdown
 
-from database import SessionLocal, engine, Base
-from models import User, Scan
-from model_loader import load_model_safe
-import sys
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+# ✅ FIXED IMPORTS
+from backend.database import SessionLocal, engine, Base
+from backend.models import User, Scan
+from backend.model_loader import load_model_safe
 
 # =====================================================
 # ENV
@@ -66,7 +65,7 @@ def on_startup():
     print("✅ Database ready")
 
 # =====================================================
-# OPENAPI (Swagger 🔒)
+# OPENAPI
 # =====================================================
 def custom_openapi():
     if app.openapi_schema:
@@ -94,7 +93,6 @@ def custom_openapi():
 
     app.openapi_schema = schema
     return app.openapi_schema
-
 
 app.openapi = custom_openapi
 
@@ -124,7 +122,7 @@ def create_access_token(data: dict, expires_minutes: int = 60):
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
 # =====================================================
-# AUTH MODELS
+# MODELS
 # =====================================================
 class AuthRequest(BaseModel):
     email: str
@@ -180,30 +178,26 @@ def get_current_user(
     return user
 
 # =====================================================
-# ML MODEL
+# ML CONFIG (LAZY LOAD)
 # =====================================================
-import gdown
-
 MODEL_PATH = os.path.join(BASE_DIR, "model", "hair-diseases.hdf5")
-
-# Create model folder if not exists
 os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
-# Download model if not exists
-if not os.path.exists(MODEL_PATH):
-    print("⬇️ Downloading model from Google Drive...")
+model = None  # 🔥 Lazy load
 
-    file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
-    url = f"https://drive.google.com/uc?id={file_id}"
+CLASS_NAMES = [
+    "Alopecia Areata",
+    "Contact Dermatitis",
+    "Folliculitis",
+    "Head Lice",
+    "Lichen Planus",
+    "Male Pattern Baldness",
+    "Psoriasis",
+    "Seborrheic Dermatitis",
+    "Telogen Effluvium",
+    "Tinea Capitis",
+]
 
-    gdown.download(url, MODEL_PATH, quiet=False)
-else:
-    print("✅ Model already exists")
-
-# Load model
-model = load_model_safe()
-print("✅ Model loaded")
-print("MODEL INPUT SHAPE:", model.input_shape)
 # =====================================================
 # IMAGE PREPROCESSING
 # =====================================================
@@ -226,12 +220,13 @@ async def predict(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    global model
+
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid image file")
 
     image_bytes = await file.read()
 
-    # ✅ Empty image check
     if not image_bytes:
         raise HTTPException(status_code=400, detail="Empty image")
 
@@ -241,20 +236,28 @@ async def predict(
     with open(image_path, "wb") as f:
         f.write(image_bytes)
 
-    # --- Preprocess ---
+    # 🔥 Download model if needed
+    if not os.path.exists(MODEL_PATH):
+        print("⬇️ Downloading model...")
+        file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
+        url = f"https://drive.google.com/uc?id={file_id}"
+        gdown.download(url, MODEL_PATH, quiet=False)
+
+    # 🔥 Load model lazily
+    if model is None:
+        print("🚀 Loading model...")
+        model = load_model_safe()
+        print("✅ Model loaded")
+
     img = preprocess_image(image_bytes)
 
-    # --- Predict ---
     raw_preds = model.predict(img)[0]
-
-    # ✅ Safe normalization
     probs = raw_preds / (np.sum(raw_preds) + 1e-8)
 
     idx = int(np.argmax(probs))
     confidence = float(probs[idx]) * 100
     disease = CLASS_NAMES[idx]
 
-    # Save meaningful results
     if confidence >= 15:
         scan = Scan(
             user_id=user.id,
@@ -295,7 +298,3 @@ def history(
         }
         for s in scans
     ]
-
-# =====================================================
-# RUN (RENDER SUPPORT)
-# =====================================================
