@@ -12,8 +12,6 @@ from datetime import datetime, timedelta
 import os
 import io
 import numpy as np
-import tensorflow as tf
-tf.get_logger().setLevel('ERROR')
 from PIL import Image
 import gdown
 
@@ -178,12 +176,12 @@ def get_current_user(
     return user
 
 # =====================================================
-# ML CONFIG (LAZY LOAD)
+# ML CONFIG (SAFE + LAZY)
 # =====================================================
 MODEL_PATH = os.path.join(BASE_DIR, "model", "hair-diseases.hdf5")
 os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
 
-model = None  # 🔥 Lazy load
+model = None  # 🔥 lazy load
 
 CLASS_NAMES = [
     "Alopecia Areata",
@@ -222,6 +220,10 @@ async def predict(
 ):
     global model
 
+    # ✅ IMPORT TENSORFLOW HERE (NOT GLOBAL)
+    import tensorflow as tf
+    tf.get_logger().setLevel('ERROR')
+
     if not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid image file")
 
@@ -236,14 +238,14 @@ async def predict(
     with open(image_path, "wb") as f:
         f.write(image_bytes)
 
-    # 🔥 Download model if needed
+    # 🔥 download model if not exists
     if not os.path.exists(MODEL_PATH):
         print("⬇️ Downloading model...")
         file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
         url = f"https://drive.google.com/uc?id={file_id}"
         gdown.download(url, MODEL_PATH, quiet=False)
 
-    # 🔥 Load model lazily
+    # 🔥 load model lazily
     if model is None:
         print("🚀 Loading model...")
         model = load_model_safe()
