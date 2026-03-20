@@ -1,3 +1,4 @@
+print("🔥 STEP 1: file loaded")
 from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -21,7 +22,7 @@ from backend.models import User, Scan
 from backend.model_loader import load_model_safe
 import sys
 import os
-print("🚀 App starting...")
+print("🔥 STEP 2: imports done")
 # =====================================================
 # ENV
 # =====================================================
@@ -95,7 +96,8 @@ def custom_openapi():
     return app.openapi_schema
 
 app.openapi = custom_openapi
-
+app = FastAPI()
+print("🔥 STEP 3: app created")
 # =====================================================
 # DB DEPENDENCY
 # =====================================================
