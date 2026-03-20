@@ -20,6 +20,8 @@ from PIL import Image
 from database import SessionLocal, engine, Base
 from models import User, Scan
 from model_loader import load_model_safe
+import sys
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # =====================================================
 # ENV
@@ -297,7 +299,3 @@ def history(
 # =====================================================
 # RUN (RENDER SUPPORT)
 # =====================================================
-if __name__ == "__main__":
-    import uvicorn
-    port = int(os.environ.get("PORT", 10000))
-    uvicorn.run("app:app", host="0.0.0.0", port=port)
