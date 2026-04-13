@@ -1,25 +1,17 @@
 print("🔥 STEP 1: file loaded")
 
-from fastapi import FastAPI, File, UploadFile, HTTPException, Depends
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.openapi.utils import get_openapi
-from sqlalchemy.orm import Session
-from pydantic import BaseModel
-from passlib.context import CryptContext
-from jose import jwt
 from dotenv import load_dotenv
 from uuid import uuid4
-from datetime import datetime, timedelta
 import os
 import io
 import numpy as np
 from PIL import Image
 import gdown
 
-# ✅ CORRECT IMPORTS
-from backend.database import SessionLocal, engine, Base
-from backend.models import User, Scan
+# ✅ MODEL LOADER
 from backend.model_loader import load_model_safe
 
 print("🔥 STEP 2: imports done")
@@ -30,24 +22,11 @@ print("🔥 STEP 2: imports done")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
-SECRET_KEY = os.getenv("SECRET_KEY")
-if not SECRET_KEY:
-    raise RuntimeError("SECRET_KEY not set")
-
-ALGORITHM = "HS256"
-
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-pwd_context = CryptContext(
-    schemes=["pbkdf2_sha256"],
-    deprecated="auto"
-)
-
-security = HTTPBearer()
-
 # =====================================================
-# APP (ONLY ONCE ✅)
+# APP
 # =====================================================
 app = FastAPI(title="ScalpFree API")
 print("🔥 STEP 3: app created")
@@ -60,15 +39,7 @@ app.add_middleware(
 )
 
 # =====================================================
-# DB STARTUP
-# =====================================================
-@app.on_event("startup")
-def on_startup():
-    Base.metadata.create_all(bind=engine)
-    print("✅ Database ready")
-
-# =====================================================
-# OPENAPI
+# OPENAPI (NO AUTH NOW)
 # =====================================================
 def custom_openapi():
     if app.openapi_schema:
@@ -81,107 +52,13 @@ def custom_openapi():
         routes=app.routes,
     )
 
-    schema["components"]["securitySchemes"] = {
-        "BearerAuth": {
-            "type": "http",
-            "scheme": "bearer",
-            "bearerFormat": "JWT",
-        }
-    }
-
-    for path, methods in schema["paths"].items():
-        for method in methods.values():
-            if path not in ["/signup", "/login"]:
-                method["security"] = [{"BearerAuth": []}]
-
     app.openapi_schema = schema
     return app.openapi_schema
 
 app.openapi = custom_openapi
 
 # =====================================================
-# DB DEPENDENCY
-# =====================================================
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-# =====================================================
-# AUTH HELPERS
-# =====================================================
-def hash_password(password: str):
-    return pwd_context.hash(password)
-
-def verify_password(plain: str, hashed: str):
-    return pwd_context.verify(plain, hashed)
-
-def create_access_token(data: dict, expires_minutes: int = 60):
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=expires_minutes)
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-# =====================================================
-# MODELS
-# =====================================================
-class AuthRequest(BaseModel):
-    email: str
-    password: str
-
-# =====================================================
-# AUTH ROUTES
-# =====================================================
-@app.post("/signup")
-def signup(data: AuthRequest, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == data.email).first():
-        raise HTTPException(status_code=400, detail="User already exists")
-
-    user = User(
-        email=data.email,
-        password=hash_password(data.password)
-    )
-    db.add(user)
-    db.commit()
-
-    return {"message": "Signup successful"}
-
-@app.post("/login")
-def login(data: AuthRequest, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == data.email).first()
-    if not user or not verify_password(data.password, user.password):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    token = create_access_token({"sub": user.email})
-    return {"access_token": token, "token_type": "bearer"}
-
-# =====================================================
-# AUTH GUARD
-# =====================================================
-def get_current_user(
-    credentials: HTTPAuthorizationCredentials = Depends(security),
-    db: Session = Depends(get_db)
-):
-    try:
-        payload = jwt.decode(
-            credentials.credentials,
-            SECRET_KEY,
-            algorithms=[ALGORITHM]
-        )
-        email = payload.get("sub")
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token")
-
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="User not found")
-
-    return user
-
-# =====================================================
-# ML CONFIG (SAFE + LAZY)
+# MODEL CONFIG
 # =====================================================
 MODEL_PATH = os.path.join(BASE_DIR, "model", "hair-diseases.hdf5")
 os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
@@ -218,14 +95,9 @@ def root():
     return {"status": "ScalpFree API running"}
 
 @app.post("/predict")
-async def predict(
-    file: UploadFile = File(...),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
+async def predict(file: UploadFile = File(...)):
     global model
 
-    # ✅ Load TensorFlow ONLY when needed
     import tensorflow as tf
     tf.get_logger().setLevel('ERROR')
 
@@ -265,43 +137,8 @@ async def predict(
     confidence = float(probs[idx]) * 100
     disease = CLASS_NAMES[idx]
 
-    if confidence >= 15:
-        scan = Scan(
-            user_id=user.id,
-            disease=disease,
-            confidence=str(round(confidence, 2)),
-            image_path=image_path,
-            created_at=datetime.utcnow()
-        )
-        db.add(scan)
-        db.commit()
-    else:
-        os.remove(image_path)
-
     return {
         "status": "PREDICTION",
         "disease": disease,
         "confidence": round(confidence, 2)
     }
-
-@app.get("/history")
-def history(
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    scans = (
-        db.query(Scan)
-        .filter(Scan.user_id == user.id)
-        .order_by(Scan.created_at.desc())
-        .all()
-    )
-
-    return [
-        {
-            "disease": s.disease,
-            "confidence": s.confidence,
-            "image": s.image_path,
-            "date": s.created_at,
-        }
-        for s in scans
-    ]
