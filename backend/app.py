@@ -94,6 +94,7 @@ def preprocess_image(image_bytes: bytes):
 def root():
     return {"status": "ScalpFree API running"}
 
+
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     global model
@@ -121,18 +122,20 @@ async def predict(file: UploadFile = File(...)):
         with open(image_path, "wb") as f:
             f.write(image_bytes)
 
-        print("🔥 Step 4: Checking model file")
+        print("🔥 Step 4: Force downloading model")
 
-        # ✅ Download model if not exists
-        if not os.path.exists(MODEL_PATH):
-            print("⬇️ Downloading model...")
-            file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
-            url = f"https://drive.google.com/uc?id={file_id}"
-            gdown.download(url, MODEL_PATH, quiet=False)
+        # 🔥 FORCE DOWNLOAD (always overwrite corrupted file)
+        file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
+        url = f"https://drive.google.com/uc?export=download&id={file_id}"
+
+        gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
+
+        # ✅ Validate model file
+        if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
+            raise Exception("Model download failed or corrupted")
 
         print("🔥 Step 5: Loading model")
 
-        # ✅ Load model safely
         if model is None:
             model = load_model_safe()
             print("✅ Model loaded")
@@ -160,7 +163,7 @@ async def predict(file: UploadFile = File(...)):
     except Exception as e:
         print("❌ ERROR:", str(e))
 
-        # 🔥 FALLBACK (so app never crashes)
+        # 🔥 fallback (never break app)
         return {
             "status": "FAILED",
             "disease": "Demo Result",
