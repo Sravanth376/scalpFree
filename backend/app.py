@@ -125,14 +125,16 @@ async def predict(file: UploadFile = File(...)):
         print("🔥 Step 4: Force downloading model")
 
         # 🔥 FORCE DOWNLOAD (always overwrite corrupted file)
+        print("⬇️ Force downloading model...")
+
         file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
         url = f"https://drive.google.com/uc?export=download&id={file_id}"
 
-        gdown.download(url, MODEL_PATH, quiet=False, fuzzy=True)
+        gdown.download(url, MODEL_PATH, quiet=False)
 
-        # ✅ Validate model file
+        # ✅ Validate file
         if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
-            raise Exception("Model download failed or corrupted")
+           raise Exception("Model download failed or corrupted")
 
         print("🔥 Step 5: Loading model")
 
