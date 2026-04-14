@@ -45,12 +45,12 @@
       "typedRoutes": true,
       "reactCompiler": true
     },
+    "owner": "sravanth77",
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "de39a7fd-ff0d-449e-a341-e060b3cae71c"
+        "projectId": "a4a69f90-6b73-4643-a437-74f7f53b241a"
       }
-    },
-    "owner": "sravanth77"
+    }
   }
 }

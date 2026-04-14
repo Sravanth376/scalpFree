@@ -1,29 +1,47 @@
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import axios from "axios";
-import { API_BASE_URL } from "@/constants/api";
+
+// ✅ USE YOUR API SERVICE
+import api, { fetchWithRetry } from "../../services/api";
 
 export default function Signup() {
   const router = useRouter();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const signup = async () => {
     try {
-      await axios.post(
-       `${API_BASE_URL}/signup`,
-        { email, password }
+      setLoading(true);
+
+      // ✅ RETRY + TIMEOUT
+      await fetchWithRetry(() =>
+        api.post("/signup", { email, password })
       );
 
-      alert("Account created. Please login.");
+      Alert.alert("Success", "Account created. Please login.");
       router.replace("/(auth)/login");
-
     } catch (err: any) {
-  console.log("Signup error:", err?.response?.data);
-  alert(err?.response?.data?.detail || "Signup failed");
-   }
+      console.log("Signup error:", err?.response?.data);
 
+      Alert.alert(
+        "Server Waking Up ⏳",
+        err?.response?.data?.detail ||
+          "Please wait 30–60 seconds and try again"
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -46,8 +64,12 @@ export default function Signup() {
         onChangeText={setPassword}
       />
 
-      <Pressable style={styles.button} onPress={signup}>
-        <Text style={styles.btnText}>Create Account</Text>
+      <Pressable style={styles.button} onPress={signup} disabled={loading}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.btnText}>Create Account</Text>
+        )}
       </Pressable>
     </View>
   );

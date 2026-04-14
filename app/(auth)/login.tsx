@@ -1,11 +1,14 @@
-// import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+// import { View, Text, TextInput, Pressable, StyleSheet, ActivityIndicator, Alert } from "react-native";
 // import { useState } from "react";
 // import { useRouter } from "expo-router";
 // import AsyncStorage from "@react-native-async-storage/async-storage";
-// import axios from "axios";
+
+// // ✅ USE YOUR API SERVICE
+// import api, { fetchWithRetry } from "../../services/api";
 
 // export default function Login() {
 //   const router = useRouter();
+
 //   const [email, setEmail] = useState("");
 //   const [password, setPassword] = useState("");
 //   const [loading, setLoading] = useState(false);
@@ -14,16 +17,24 @@
 //     try {
 //       setLoading(true);
 
-//       const res = await axios.post(
-//         "http://192.168.29.58:8000/login",
-//         { email, password }
+//       // ✅ RETRY + TIMEOUT
+//       const res = await fetchWithRetry(() =>
+//         api.post("/login", { email, password })
 //       );
 
+//       // ✅ save JWT token
 //       await AsyncStorage.setItem("token", res.data.access_token);
 
-//       router.replace("/"); // go to home
-//     } catch (err) {
-//       alert("Invalid email or password");
+//       // ✅ go to home
+//       router.replace("/");
+//     } catch (err: any) {
+//       console.log("Login error:", err?.response?.data);
+
+//       Alert.alert(
+//         "Server Waking Up ⏳",
+//         err?.response?.data?.detail ||
+//           "Please wait 30–60 seconds and try again"
+//       );
 //     } finally {
 //       setLoading(false);
 //     }
@@ -49,10 +60,12 @@
 //         onChangeText={setPassword}
 //       />
 
-//       <Pressable style={styles.button} onPress={login}>
-//         <Text style={styles.btnText}>
-//           {loading ? "Logging in..." : "Login"}
-//         </Text>
+//       <Pressable style={styles.button} onPress={login} disabled={loading}>
+//         {loading ? (
+//           <ActivityIndicator color="#fff" />
+//         ) : (
+//           <Text style={styles.btnText}>Login</Text>
+//         )}
 //       </Pressable>
 
 //       <Pressable onPress={() => router.push("/(auth)/signup")}>
@@ -98,12 +111,21 @@
 //     color: "#2563eb",
 //   },
 // });
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ActivityIndicator,
+  Alert,
+} from "react-native";
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { API_BASE_URL } from "@/constants/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import axios from "axios";
+
+import api from "../../services/api";
 
 export default function Login() {
   const router = useRouter();
@@ -116,23 +138,31 @@ export default function Login() {
     try {
       setLoading(true);
 
-    const res = await axios.post(
-    `${API_BASE_URL}/login`,
-     { email, password }
-   );
+      const res = await api.post("/login", { email, password });
+
+      console.log("LOGIN RESPONSE:", res.data);
+
+      // ✅ SAFE TOKEN EXTRACTION
+      const token = res.data.access_token;
 
 
-      // ✅ save JWT token
-      await AsyncStorage.setItem("token", res.data.access_token);
+      console.log("TOKEN RECEIVED:", token);
 
-      // ✅ go to home
+      if (!token) {
+        Alert.alert("Login Failed", "No token received");
+        return;
+      }
+
+      // ✅ SAVE CLEAN TOKEN
+      await AsyncStorage.setItem("token", token.trim());
+
       router.replace("/");
     } catch (err: any) {
-      console.log("Login error:", err?.response?.data);
+      console.log("Login error:", err?.response?.data || err);
 
-      alert(
-        err?.response?.data?.detail ||
-        "Invalid email or password"
+      Alert.alert(
+        "Login Failed",
+        err?.response?.data?.detail || "Invalid email or password"
       );
     } finally {
       setLoading(false);
@@ -159,10 +189,12 @@ export default function Login() {
         onChangeText={setPassword}
       />
 
-      <Pressable style={styles.button} onPress={login} disabled={loading}>
-        <Text style={styles.btnText}>
-          {loading ? "Logging in..." : "Login"}
-        </Text>
+      <Pressable style={styles.button} onPress={login}>
+        {loading ? (
+          <ActivityIndicator color="#fff" />
+        ) : (
+          <Text style={styles.btnText}>Login</Text>
+        )}
       </Pressable>
 
       <Pressable onPress={() => router.push("/(auth)/signup")}>
