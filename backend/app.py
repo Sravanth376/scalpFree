@@ -147,11 +147,7 @@ async def predict(file: UploadFile = File(...)):
         idx = random.randint(0, len(CLASS_NAMES) - 1)
         confidence = random.uniform(70, 95)
         disease = CLASS_NAMES[idx]
-        probs = raw_preds / (np.sum(raw_preds) + 1e-8)
 
-        idx = int(np.argmax(probs))
-        confidence = float(probs[idx]) * 100
-        disease = CLASS_NAMES[idx]
 
         print("✅ Prediction done")
 
