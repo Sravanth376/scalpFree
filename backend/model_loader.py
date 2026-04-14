@@ -32,25 +32,28 @@ def build_model():
 # DOWNLOAD MODEL (FIXED)
 # =====================================================
 def download_model():
-    # 🔥 Re-download if missing OR corrupted
+    os.makedirs("model", exist_ok=True)
+
+    # 🔥 ALWAYS delete old corrupted file
+    if os.path.exists(MODEL_PATH):
+        print("⚠ Removing old corrupted model...")
+        os.remove(MODEL_PATH)
+
+    print("⬇ Downloading model from Google Drive...")
+
+    file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
+
+    gdown.download(
+        id=file_id,
+        output=MODEL_PATH,
+        quiet=False
+    )
+
+    # ✅ STRICT VALIDATION
     if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
-        os.makedirs("model", exist_ok=True)
+        raise Exception("❌ Model download failed or corrupted")
 
-        print("⬇ Downloading model from Google Drive...")
-
-        file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
-
-        gdown.download(
-            id=file_id,
-            output=MODEL_PATH,
-            quiet=False
-        )
-
-        # ✅ Safety check
-        if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
-            raise Exception("❌ Model download failed or corrupted")
-
-        print("✅ Model downloaded successfully")
+    print("✅ Model downloaded successfully")
 
 
 # =====================================================
