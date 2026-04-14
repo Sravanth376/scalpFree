@@ -1,0 +1,141 @@
+{
+  "info": {
+    "name": "ScalpFree API",
+    "description": "API tests for the ScalpFree scalp disease detection backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8000", "type": "string" }
+  ],
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/health",
+        "description": "Verify the backend is running and the model is loaded."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Model loaded', () => {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json.status).to.eql('ok');",
+              "  pm.expect(json.model_loaded).to.be.true;",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Predict – valid image",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/v1/predict",
+        "description": "Upload a scalp image and receive a diagnosis.\nChange the 'file' field source to any local JPEG/PNG.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "/path/to/your/scalp-test-image.jpg",
+              "description": "Replace with an actual image path"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 200', () => pm.response.to.have.status(200));",
+              "pm.test('Has disease field', () => {",
+              "  const json = pm.response.json();",
+              "  pm.expect(json).to.have.property('disease');",
+              "  pm.expect(json).to.have.property('confidence');",
+              "  pm.expect(json).to.have.property('confidence_pct');",
+              "  pm.expect(json).to.have.property('all_scores');",
+              "  pm.expect(json.all_scores).to.have.lengthOf(10);",
+              "});",
+              "pm.test('Confidence is valid float', () => {",
+              "  const conf = pm.response.json().confidence;",
+              "  pm.expect(conf).to.be.a('number');",
+              "  pm.expect(conf).to.be.within(0, 1);",
+              "});",
+              "console.log('Prediction:', pm.response.json().disease, pm.response.json().confidence_pct);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Predict – no file (expect 422)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/v1/predict",
+        "description": "Send request with no file attached – should get FastAPI validation error.",
+        "body": { "mode": "formdata", "formdata": [] }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 422 Unprocessable Entity', () => pm.response.to.have.status(422));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Predict – wrong file type (expect 400)",
+      "request": {
+        "method": "POST",
+        "url": "{{base_url}}/api/v1/predict",
+        "description": "Upload a .txt file – should get 400 Bad Request.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": "/path/to/any-text-file.txt"
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "pm.test('Status 400 for non-image', () => pm.response.to.have.status(400));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "API Docs (Swagger UI)",
+      "request": {
+        "method": "GET",
+        "url": "{{base_url}}/docs",
+        "description": "Open the auto-generated FastAPI Swagger UI in your browser."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [ "pm.test('Swagger UI loads', () => pm.response.to.have.status(200));" ]
+          }
+        }
+      ]
+    }
+  ]
+}
