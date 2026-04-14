@@ -5,6 +5,9 @@ from tensorflow.keras import layers, models
 
 MODEL_PATH = "model/hair-diseases.hdf5"
 
+# =====================================================
+# BUILD MODEL ARCHITECTURE
+# =====================================================
 def build_model():
     inputs = layers.Input(shape=(128, 128, 3))
 
@@ -25,18 +28,34 @@ def build_model():
     return model
 
 
+# =====================================================
+# DOWNLOAD MODEL (FIXED)
+# =====================================================
 def download_model():
-    if not os.path.exists(MODEL_PATH):
+    # 🔥 Re-download if missing OR corrupted
+    if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
         os.makedirs("model", exist_ok=True)
 
         print("⬇ Downloading model from Google Drive...")
 
-        url = "https://drive.google.com/file/d/1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n/view?usp=sharing"
-        gdown.download(url, MODEL_PATH, quiet=False)
+        file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
 
-        print("✅ Model downloaded")
+        gdown.download(
+            id=file_id,
+            output=MODEL_PATH,
+            quiet=False
+        )
+
+        # ✅ Safety check
+        if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
+            raise Exception("❌ Model download failed or corrupted")
+
+        print("✅ Model downloaded successfully")
 
 
+# =====================================================
+# LOAD MODEL SAFELY
+# =====================================================
 def load_model_safe():
     download_model()
 
