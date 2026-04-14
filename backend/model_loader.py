@@ -1,70 +1,56 @@
-import os
-import gdown
-import tensorflow as tf
-from tensorflow.keras import layers, models
+from pathlib import Path
 
-MODEL_PATH = "model/hair-diseases.hdf5"
-
-# =====================================================
-# BUILD MODEL ARCHITECTURE
-# =====================================================
-def build_model():
-    inputs = layers.Input(shape=(128, 128, 3))
-
-    x = layers.Conv2D(32, 3, activation="relu")(inputs)
-    x = layers.MaxPooling2D()(x)
-
-    x = layers.Conv2D(64, 3, activation="relu")(x)
-    x = layers.MaxPooling2D()(x)
-
-    x = layers.Conv2D(128, 3, activation="relu")(x)
-    x = layers.MaxPooling2D()(x)
-
-    x = layers.Flatten()(x)
-    x = layers.Dense(256, activation="relu")(x)
-    outputs = layers.Dense(10, activation="softmax")(x)
-
-    model = models.Model(inputs, outputs)
-    return model
+BASE_DIR = Path(__file__).resolve().parent
+MODEL_DIR = BASE_DIR / "model"
+MODEL_PATH = MODEL_DIR / "hair-diseases.hdf5"
+MODEL_FILE_ID = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
+MIN_MODEL_SIZE_BYTES = 1_000_000
 
 
-# =====================================================
-# DOWNLOAD MODEL (FIXED)
-# =====================================================
-def download_model():
-    os.makedirs("model", exist_ok=True)
+def _is_valid_model_file(path: Path) -> bool:
+    return path.exists() and path.stat().st_size >= MIN_MODEL_SIZE_BYTES
 
-    # 🔥 ALWAYS delete old corrupted file
-    if os.path.exists(MODEL_PATH):
-        print("⚠ Removing old corrupted model...")
-        os.remove(MODEL_PATH)
 
-    print("⬇ Downloading model from Google Drive...")
+def download_model() -> Path:
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
 
-    file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
+    if _is_valid_model_file(MODEL_PATH):
+        print(f"Model found at {MODEL_PATH}")
+        return MODEL_PATH
 
-    gdown.download(
-        id=file_id,
-        output=MODEL_PATH,
-        quiet=False
+    if MODEL_PATH.exists():
+        print(f"Removing incomplete model file at {MODEL_PATH}")
+        MODEL_PATH.unlink()
+
+    print("Downloading model from Google Drive...")
+    import gdown
+
+    gdown.download(id=MODEL_FILE_ID, output=str(MODEL_PATH), quiet=False)
+
+    if not _is_valid_model_file(MODEL_PATH):
+        raise RuntimeError(f"Model download failed or is corrupted: {MODEL_PATH}")
+
+    print("Model downloaded successfully")
+    return MODEL_PATH
+
+
+def load_model_safe():
+    import tensorflow as tf
+
+    model_path = download_model()
+    try:
+        from keras_multi_head import MultiHeadAttention
+    except ImportError as exc:
+        raise RuntimeError(
+            "Missing dependency 'keras-multi-head'. Install backend requirements "
+            "before starting the API."
+        ) from exc
+
+    model = tf.keras.models.load_model(
+        str(model_path),
+        compile=False,
+        custom_objects={"MultiHeadAttention": MultiHeadAttention},
     )
 
-    # ✅ STRICT VALIDATION
-    if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
-        raise Exception("❌ Model download failed or corrupted")
-
-    print("✅ Model downloaded successfully")
-
-
-# =====================================================
-# LOAD MODEL SAFELY
-# =====================================================
-def load_model_safe():
-    download_model()
-
-    model = build_model()
-    model.load_weights(MODEL_PATH)
-
-    print("✅ Model loaded successfully")
-
+    print(f"Model loaded successfully from {model_path}")
     return model

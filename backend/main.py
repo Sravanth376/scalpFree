@@ -1,4 +1,4 @@
-print("🔥 STEP 1: file loaded")
+print("STEP 1: file loaded")
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,12 +9,10 @@ import os
 import io
 import numpy as np
 from PIL import Image
-import gdown
 
-# ✅ MODEL LOADER
 from model_loader import load_model_safe
 
-print("🔥 STEP 2: imports done")
+print("STEP 2: imports done")
 
 # =====================================================
 # ENV
@@ -29,7 +27,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 # APP
 # =====================================================
 app = FastAPI(title="ScalpFree API")
-print("🔥 STEP 3: app created")
+print("STEP 3: app created")
 
 app.add_middleware(
     CORSMiddleware,
@@ -37,6 +35,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # =====================================================
 # OPENAPI (NO AUTH)
@@ -55,13 +54,8 @@ def custom_openapi():
     app.openapi_schema = schema
     return app.openapi_schema
 
-app.openapi = custom_openapi
 
-# =====================================================
-# MODEL CONFIG
-# =====================================================
-MODEL_PATH = os.path.join(BASE_DIR, "model", "hair-diseases.hdf5")
-os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+app.openapi = custom_openapi
 
 CLASS_NAMES = [
     "Alopecia Areata",
@@ -77,28 +71,12 @@ CLASS_NAMES = [
 ]
 
 # =====================================================
-# DOWNLOAD MODEL (ONLY ONCE)
-# =====================================================
-print("⬇️ Checking model...")
-
-file_id = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
-url = f"https://drive.google.com/uc?export=download&id={file_id}"
-
-if not os.path.exists(MODEL_PATH):
-    print("⬇️ Downloading model (one-time)...")
-    gdown.download(url, MODEL_PATH, quiet=False)
-
-if not os.path.exists(MODEL_PATH) or os.path.getsize(MODEL_PATH) < 1000000:
-    raise Exception("❌ Model download failed or corrupted")
-
-# =====================================================
 # LOAD MODEL (ONLY ONCE)
 # =====================================================
-print("🔥 Loading model at startup...")
-
+print("Loading model at startup...")
 model = load_model_safe()
+print("Model ready")
 
-print("✅ Model ready")
 
 # =====================================================
 # IMAGE PREPROCESSING
@@ -108,6 +86,7 @@ def preprocess_image(image_bytes: bytes):
     img = img.resize((128, 128))
     arr = np.array(img, dtype=np.float32) / 255.0
     return np.expand_dims(arr, axis=0)
+
 
 # =====================================================
 # ROUTES
@@ -120,9 +99,8 @@ def root():
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
     try:
-        print("🔥 Request received")
+        print("Request received")
 
-        # ✅ Validate file
         if not file.content_type.startswith("image/"):
             raise HTTPException(status_code=400, detail="Invalid image file")
 
@@ -131,39 +109,35 @@ async def predict(file: UploadFile = File(...)):
         if not image_bytes:
             raise HTTPException(status_code=400, detail="Empty image")
 
-        # (Optional) Save uploaded file
         filename = f"{uuid4()}.jpg"
         image_path = os.path.join(UPLOAD_DIR, filename)
 
         with open(image_path, "wb") as f:
             f.write(image_bytes)
 
-        # ✅ Preprocess
         img = preprocess_image(image_bytes)
 
-        # ✅ Predict
+        # TODO: replace demo response with real model inference.
         import random
 
         idx = random.randint(0, len(CLASS_NAMES) - 1)
         confidence = random.uniform(70, 95)
         disease = CLASS_NAMES[idx]
 
-
-        print("✅ Prediction done")
+        print("Prediction done")
 
         return {
             "status": "PREDICTION",
             "disease": disease,
-            "confidence": round(confidence, 2)
+            "confidence": round(confidence, 2),
         }
 
     except Exception as e:
-        print("❌ ERROR:", str(e))
+        print("ERROR:", str(e))
 
-        # 🔥 Fallback (NEVER CRASH)
         return {
             "status": "FAILED",
             "disease": "Demo Result",
             "confidence": 75.0,
-            "error": str(e)
+            "error": str(e),
         }
