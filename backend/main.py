@@ -12,7 +12,7 @@ from PIL import Image
 import gdown
 
 # ✅ MODEL LOADER
-from backend.model_loader import load_model_safe
+from model_loader import load_model_safe
 
 print("🔥 STEP 2: imports done")
 
