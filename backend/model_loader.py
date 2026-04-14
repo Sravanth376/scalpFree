@@ -4,8 +4,8 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "model"
 DEFAULT_MODEL_PATH = MODEL_DIR / "hair-diseases.hdf5"
-MODEL_FILE_ID = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
-MODEL_URL = f"https://drive.google.com/uc?id={MODEL_FILE_ID}"
+MODEL_FILE_ID = "1av9OA2czbw4n0KQnpPa3fHgjWdQ01zJH"
+MODEL_URL = f"https://drive.google.com/uc?export=download&id={MODEL_FILE_ID}"
 MIN_MODEL_SIZE_BYTES = 1_000_000
 
 
@@ -50,16 +50,30 @@ def download_model() -> Path:
     print("Downloading model from Google Drive...")
     import gdown
 
-    downloaded_path = gdown.download(
-        MODEL_URL,
-        output=str(model_path),
-        quiet=False,
-    )
+    downloaded_path = None
+
+    # Older gdown versions on Render support `id=` but not newer flags like `fuzzy=`.
+    try:
+        downloaded_path = gdown.download(
+            id=MODEL_FILE_ID,
+            output=str(model_path),
+            quiet=False,
+        )
+    except TypeError:
+        downloaded_path = gdown.download(
+            MODEL_URL,
+            output=str(model_path),
+            quiet=False,
+        )
 
     if not downloaded_path or not _is_valid_model_file(model_path):
+        size = model_path.stat().st_size if model_path.exists() else 0
         if model_path.exists():
             model_path.unlink()
-        raise RuntimeError(f"Model download failed or is corrupted: {model_path}")
+        raise RuntimeError(
+            "Model download failed or is corrupted: "
+            f"{model_path} (downloaded {size} bytes)."
+        )
 
     print("Model downloaded successfully")
     return model_path
