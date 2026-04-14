@@ -1,11 +1,11 @@
 import os
 from pathlib import Path
-from typing import Optional
 
 BASE_DIR = Path(__file__).resolve().parent
 MODEL_DIR = BASE_DIR / "model"
 DEFAULT_MODEL_PATH = MODEL_DIR / "hair-diseases.hdf5"
 MODEL_FILE_ID = "1As3X27IkWqnpZcnrfRFzgZcTHs3X7M7n"
+MODEL_URL = f"https://drive.google.com/uc?id={MODEL_FILE_ID}"
 MIN_MODEL_SIZE_BYTES = 1_000_000
 
 
@@ -50,11 +50,10 @@ def download_model() -> Path:
     print("Downloading model from Google Drive...")
     import gdown
 
-    downloaded_path: Optional[str] = gdown.download(
-        id=MODEL_FILE_ID,
+    downloaded_path = gdown.download(
+        MODEL_URL,
         output=str(model_path),
         quiet=False,
-        fuzzy=True,
     )
 
     if not downloaded_path or not _is_valid_model_file(model_path):
