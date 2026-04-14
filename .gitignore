@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # =========================
 # React Native / Expo
 # =========================
@@ -51,3 +52,22 @@ model/
 
 # Logs
 *.log
+=======
+# Python
+venv/
+backend/venv/
+__pycache__/
+*.pyc
+
+# ML / Large models
+backend/*.h5
+backend/*.hdf5
+
+# Node / React
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+*.db
+>>>>>>> c777625a092e85f56b2cdc1f962198392d4623bf
